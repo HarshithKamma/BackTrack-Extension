@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Screenshot Resizer for Chrome Web Store</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      min-height: 100vh;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 { margin-bottom: 10px; }
+    .subtitle { opacity: 0.7; margin-bottom: 30px; }
+    
+    .upload-area {
+      border: 3px dashed rgba(99, 102, 241, 0.5);
+      border-radius: 16px;
+      padding: 60px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(99, 102, 241, 0.1);
+      margin-bottom: 30px;
+    }
+    .upload-area:hover {
+      border-color: #6366f1;
+      background: rgba(99, 102, 241, 0.2);
+    }
+    .upload-area.drag-over {
+      border-color: #8b5cf6;
+      background: rgba(139, 92, 246, 0.3);
+    }
+    
+    input[type="file"] { display: none; }
+    
+    .size-options {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .size-option {
+      padding: 15px 30px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      transition: all 0.3s;
+    }
+    .size-option:hover {
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+    .size-option.selected {
+      border-color: #6366f1;
+      background: rgba(99, 102, 241, 0.2);
+    }
+    
+    .preview-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .preview-container.show { display: flex; }
+    
+    canvas {
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      max-width: 100%;
+    }
+    
+    .download-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 16px 40px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+    .download-btn:hover {
+      transform: scale(1.05);
+    }
+    
+    .info {
+      background: rgba(99, 102, 241, 0.2);
+      padding: 15px 25px;
+      border-radius: 10px;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    .info strong { color: #a5b4fc; }
+  </style>
+</head>
+<body>
+  <h1>📸 Screenshot Resizer</h1>
+  <p class="subtitle">Resize your screenshot for Chrome Web Store</p>
+  
+  <div class="size-options">
+    <div class="size-option selected" data-width="1280" data-height="800">
+      <strong>1280 x 800</strong>
+      <br><small>Recommended</small>
+    </div>
+    <div class="size-option" data-width="640" data-height="400">
+      <strong>640 x 400</strong>
+      <br><small>Smaller</small>
+    </div>
+  </div>
+  
+  <div class="upload-area" id="uploadArea">
+    <p style="font-size: 18px; margin: 0;">📁 Click to upload or drag & drop your screenshot</p>
+    <p style="opacity: 0.6; margin-top: 10px;">Supports PNG, JPG, JPEG</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+  
+  <div class="preview-container" id="previewContainer">
+    <p><strong>Preview</strong> (will be saved as <span id="dimensions">1280x800</span>)</p>
+    <canvas id="canvas"></canvas>
+    <button class="download-btn" id="downloadBtn">⬇️ Download Resized Screenshot</button>
+    <div class="info">
+      <strong>Original size:</strong> <span id="originalSize">-</span> → 
+      <strong>New size:</strong> <span id="newSize">1280 x 800</span>
+    </div>
+  </div>
+
+  <script>
+    let targetWidth = 1280;
+    let targetHeight = 800;
+    let loadedImage = null;
+    
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const previewContainer = document.getElementById('previewContainer');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const sizeOptions = document.querySelectorAll('.size-option');
+    
+    // Size option selection
+    sizeOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        sizeOptions.forEach(o => o.classList.remove('selected'));
+        option.classList.add('selected');
+        targetWidth = parseInt(option.dataset.width);
+        targetHeight = parseInt(option.dataset.height);
+        document.getElementById('dimensions').textContent = `${targetWidth}x${targetHeight}`;
+        document.getElementById('newSize').textContent = `${targetWidth} x ${targetHeight}`;
+        if (loadedImage) {
+          processImage(loadedImage);
+        }
+      });
+    });
+    
+    // Click to upload
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('drag-over');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('drag-over');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        handleFile(file);
+      }
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFile(file);
+    });
+    
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          loadedImage = img;
+          document.getElementById('originalSize').textContent = `${img.width} x ${img.height}`;
+          processImage(img);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    function processImage(img) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      
+      // Calculate scaling to cover the target area (crop if needed)
+      const scale = Math.max(targetWidth / img.width, targetHeight / img.height);
+      const scaledWidth = img.width * scale;
+      const scaledHeight = img.height * scale;
+      
+      // Center the image
+      const x = (targetWidth - scaledWidth) / 2;
+      const y = (targetHeight - scaledHeight) / 2;
+      
+      // Fill with dark background first
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+      
+      // Draw scaled image
+      ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+      
+      previewContainer.classList.add('show');
+    }
+    
+    // Download
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = `screenshot-${targetWidth}x${targetHeight}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
+
