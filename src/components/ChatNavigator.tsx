@@ -1,11 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
-  ChevronRight,
-  ChevronDown,
   GripVertical,
   RefreshCw,
   Minimize2,
-  Maximize2,
   List,
   MessageSquare,
 } from "lucide-react";

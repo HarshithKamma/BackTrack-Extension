@@ -28,10 +28,25 @@ function debounce<T extends (...args: unknown[]) => void>(
 }
 
 /**
- * Extract clean text from an element
+ * Extract clean text from an element, handling images
  */
 function extractText(element: Element): string {
-  const text = element.textContent?.trim() || "";
+  let text = element.textContent?.trim() || "";
+  
+  // Check for images in the prompt
+  const images = element.querySelectorAll("img");
+  const hasImages = images.length > 0;
+  
+  // If there's no text but there are images, create a placeholder
+  if (!text && hasImages) {
+    const imageCount = images.length;
+    text = imageCount === 1 ? "📷 [Image]" : `📷 [${imageCount} Images]`;
+  } else if (text && hasImages) {
+    // If there's both text and images, append image indicator
+    text = `📷 ${text}`;
+  }
+  
+  // Truncate if too long
   if (text.length > MAX_PROMPT_TEXT_LENGTH) {
     return text.substring(0, MAX_PROMPT_TEXT_LENGTH) + "...";
   }
