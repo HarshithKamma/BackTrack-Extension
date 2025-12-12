@@ -24,7 +24,7 @@ function copyExtensionFiles() {
         }
 
         const iconFiles = readdirSync(iconsDir);
-        iconFiles.forEach((file) => {
+        iconFiles.forEach((file: string) => {
           copyFileSync(
             resolve(iconsDir, file),
             resolve(distIconsDir, file)
