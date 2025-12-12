@@ -345,6 +345,17 @@ body {
     color: var(--text-muted);
 }
 
+.privacy-card a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.privacy-card a:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
 .last-updated {
     font-size: 0.9rem;
     color: var(--text-muted);
