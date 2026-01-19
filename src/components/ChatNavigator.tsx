@@ -174,6 +174,39 @@ export function ChatNavigator() {
   }, [size.width, isCollapsed]);
 
   /**
+   * Handle window resize - clamp position to stay within viewport
+   */
+  useEffect(() => {
+    const handleWindowResize = () => {
+      setPosition((prevPosition) => {
+        const panelWidth = isCollapsed ? 48 : size.width;
+        const panelHeight = isCollapsed ? 48 : size.height;
+
+        const maxX = Math.max(0, window.innerWidth - panelWidth);
+        const maxY = Math.max(0, window.innerHeight - panelHeight);
+
+        const newX = Math.min(prevPosition.x, maxX);
+        const newY = Math.min(prevPosition.y, maxY);
+
+        // Only update if position changed
+        if (newX !== prevPosition.x || newY !== prevPosition.y) {
+          return { x: Math.max(0, newX), y: Math.max(0, newY) };
+        }
+        return prevPosition;
+      });
+    };
+
+    window.addEventListener("resize", handleWindowResize);
+
+    // Also run once on mount/size change to ensure position is valid
+    handleWindowResize();
+
+    return () => {
+      window.removeEventListener("resize", handleWindowResize);
+    };
+  }, [size.width, size.height, isCollapsed]);
+
+  /**
    * Handle click on a prompt
    */
   const handlePromptClick = useCallback((prompt: ChatPrompt) => {
