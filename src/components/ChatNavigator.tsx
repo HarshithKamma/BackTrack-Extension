@@ -88,6 +88,7 @@ export function ChatNavigator() {
   const isResizingRef = useRef(false);
   const dragStartRef = useRef<Position>({ x: 0, y: 0 });
   const resizeStartRef = useRef<Size>({ width: 0, height: 0 });
+  const hasDraggedRef = useRef(false);
 
   // Get prompts from scanner
   const { prompts, platform, isScanning, rescan } = useChatScanner();
@@ -100,6 +101,7 @@ export function ChatNavigator() {
     (e: React.MouseEvent) => {
       e.preventDefault();
       isDraggingRef.current = true;
+      hasDraggedRef.current = false;
       dragStartRef.current = {
         x: e.clientX - position.x,
         y: e.clientY - position.y,
@@ -128,9 +130,10 @@ export function ChatNavigator() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDraggingRef.current) {
+        hasDraggedRef.current = true;
         const newX = Math.max(
           0,
-          Math.min(window.innerWidth - size.width, e.clientX - dragStartRef.current.x)
+          Math.min(window.innerWidth - (isCollapsed ? 48 : size.width), e.clientX - dragStartRef.current.x)
         );
         const newY = Math.max(
           0,
@@ -168,7 +171,7 @@ export function ChatNavigator() {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [size.width]);
+  }, [size.width, isCollapsed]);
 
   /**
    * Handle click on a prompt
@@ -177,21 +180,32 @@ export function ChatNavigator() {
     scrollToPrompt(prompt);
   }, []);
 
-  // Collapsed state - just show a small icon
+  /**
+   * Handle click on minimized button - only expand if we didn't drag
+   */
+  const handleMinimizedClick = useCallback(() => {
+    if (!hasDraggedRef.current) {
+      setIsCollapsed(false);
+    }
+  }, []);
+
+  // Collapsed state - draggable minimized icon
   if (isCollapsed) {
     return (
       <div
         ref={panelRef}
+        onMouseDown={handleDragStart}
         style={{
           position: "fixed",
           top: position.y,
           left: position.x,
           zIndex: 2147483647,
+          cursor: isDraggingRef.current ? "grabbing" : "grab",
         }}
         className="animate-fade-in"
       >
         <button
-          onClick={() => setIsCollapsed(false)}
+          onClick={handleMinimizedClick}
           className="w-12 h-12 rounded-xl
                      bg-gray-900/90 backdrop-blur-xl
                      border border-white/10
@@ -199,8 +213,9 @@ export function ChatNavigator() {
                      flex items-center justify-center
                      hover:bg-gray-800/90 hover:border-accent-500/30
                      transition-all duration-200
-                     group"
-          title="Expand BackTrack"
+                     group
+                     cursor-inherit"
+          title="Drag to move • Click to expand"
         >
           <List className="w-5 h-5 text-accent-400 group-hover:text-accent-300" />
         </button>
@@ -255,9 +270,8 @@ export function ChatNavigator() {
             title="Rescan prompts"
           >
             <RefreshCw
-              className={`w-4 h-4 text-gray-400 hover:text-white ${
-                isScanning ? "animate-spin" : ""
-              }`}
+              className={`w-4 h-4 text-gray-400 hover:text-white ${isScanning ? "animate-spin" : ""
+                }`}
             />
           </button>
 
