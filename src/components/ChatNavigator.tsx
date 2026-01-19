@@ -222,6 +222,52 @@ export function ChatNavigator() {
     }
   }, []);
 
+  /**
+   * Handle collapse - snap to nearest edge
+   */
+  const handleCollapse = useCallback(() => {
+    const collapsedSize = 48; // Size of minimized icon
+    const padding = 12; // Padding from edge
+
+    // Calculate center of current panel
+    const panelCenterX = position.x + size.width / 2;
+    const panelCenterY = position.y + size.height / 2;
+
+    // Calculate distances to each edge
+    const distanceToLeft = panelCenterX;
+    const distanceToRight = window.innerWidth - panelCenterX;
+    const distanceToTop = panelCenterY;
+    const distanceToBottom = window.innerHeight - panelCenterY;
+
+    // Find the minimum distance
+    const minDistance = Math.min(distanceToLeft, distanceToRight, distanceToTop, distanceToBottom);
+
+    let newX = position.x;
+    let newY = position.y;
+
+    // Snap to the closest edge
+    if (minDistance === distanceToLeft) {
+      // Snap to left edge
+      newX = padding;
+      newY = Math.max(padding, Math.min(window.innerHeight - collapsedSize - padding, panelCenterY - collapsedSize / 2));
+    } else if (minDistance === distanceToRight) {
+      // Snap to right edge
+      newX = window.innerWidth - collapsedSize - padding;
+      newY = Math.max(padding, Math.min(window.innerHeight - collapsedSize - padding, panelCenterY - collapsedSize / 2));
+    } else if (minDistance === distanceToTop) {
+      // Snap to top edge
+      newX = Math.max(padding, Math.min(window.innerWidth - collapsedSize - padding, panelCenterX - collapsedSize / 2));
+      newY = padding;
+    } else {
+      // Snap to bottom edge
+      newX = Math.max(padding, Math.min(window.innerWidth - collapsedSize - padding, panelCenterX - collapsedSize / 2));
+      newY = window.innerHeight - collapsedSize - padding;
+    }
+
+    setPosition({ x: newX, y: newY });
+    setIsCollapsed(true);
+  }, [position, size]);
+
   // Collapsed state - draggable minimized icon
   if (isCollapsed) {
     return (
@@ -310,7 +356,7 @@ export function ChatNavigator() {
 
           {/* Collapse button */}
           <button
-            onClick={() => setIsCollapsed(true)}
+            onClick={handleCollapse}
             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
             title="Minimize"
           >
